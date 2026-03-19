@@ -4,7 +4,6 @@
 // Definisco i pin a cui i sensori sono collegati
 #define MQ7 32                  // Rilevatore CO (Monossido di carbonio)
 #define MQ4 33                  // Rilevatore Metano
-#define VOUT 25                 // Tensione per il sensore MQ7
 
 // Resistenza di riferimento
 #define RL 1000                 // 1 kOhm
@@ -28,13 +27,8 @@ float Ro4, Ro7;
 void preheat(void){
   Serial.println("Riscaldamento sensore MQ7...");
 
-  // Do tensione a 3.3 V per 60s
-  dacWrite(VOUT, 255);
+  // Do tensione a 5 V per 60s
   delay(60000);
-
-  // Do tensione di campionamento a 1.5 V per 90s
-  dacWrite(VOUT, 115);
-  delay(90000);
   Serial.println("Riscaldamento completato");
 }
 
@@ -89,6 +83,7 @@ calibInit calib_gas(int sensor) {
 
   // Calcolo il valore medio di Rs e calcolo la R0 (Di riferimento)
   float R0 = Rs_mean/CLEAN_AIR_FACTOR;
+  status.data = R0;
 
   Serial.println("Calibrazione completata");
   return status;
@@ -140,7 +135,6 @@ void setup() {
   Serial.begin(115200);         // Seriale per stampe e controlli in-line
   pinMode(MQ7, INPUT);          // Sensore CO
   pinMode(MQ4, INPUT);          // Sensore Met
-  pinMode(VOUT, OUTPUT);        // Tensione MQ7
 
   // Avvio sensori
   aht.begin();                  // Sensore AHT20 per umidità
@@ -158,4 +152,8 @@ void setup() {
 }
 
 void loop() {
+  delay(1000);
+  Serial.println(readCO());
+  Serial.println(readRH());
+  Serial.println(readMethane());
 }
