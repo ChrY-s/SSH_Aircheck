@@ -4,8 +4,11 @@
 #include <WiFi.h>
 #include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
+
+#include <ESPAsyncWebServer.h>
+#include <AsyncTCP.h>
+#include <LittleFS.h>
 #include "FS.h"
-#include "SPIFFS.h"
 
 // ------------ DEFINZIONI -------------
 // Definisco i pin a cui i sensori sono collegati
@@ -65,8 +68,8 @@ TaskHandle_t writeDB_handle;    // Scrittura su DB
 TaskHandle_t serverWEB_handle;  // Server WEB
 
 // WIFI
-WiFiMulti wifiMulti;            // Dispositivo wifi multi-device
-WiFiServer server(PORT);        // Server per HTTP a porta 80
+WiFiMulti wifiMulti;                // Dispositivo wifi multi-device
+AsyncWebServer server(PORT);        // Server per HTTP a porta 80
 
 // Client InfluxDB
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
@@ -187,61 +190,40 @@ float readRH(void) {
 }
 
 // Funzioni pagina HTML di risposta
-// Funzione per inviare la pagina HTML principale
-void serveHtmlPage(WiFiClient client) {
-  File file = SPIFFS.open(PAGE, "r");
-
-  // Controllo se esiste il file
-  if (file) {
-    // Header HTTP
-    client.println("HTTP/1.1 200 OK");
-    client.println("Content-type:text/html");
-    client.println();
-
-    // DA CHIEDERE AL PROF
-    while(file.available()) {
-      client.print(file.read());
-      Serial.println("Printing...");
-    }
-    
-    Serial.println("\nDone");
-
-    file.close();  // Chiudi il file HTML
-  }
-  else {
-    // Header HTTP
-    client.println("HTTP/1.1 404 Not Fount");
-    client.println();
-    client.println("File non trovato");
-  }
-}
 // Funzioni per restituire i singoli dati
-// Restituiscono i dati in formato JSON o plain text
+// Restituiscono i dati in formato Stringa per spedirli alla pagina WEB
 // Metano
-void serveData_Meth(WiFiClient client) {
+String serveData_Meth() {
   String data = String(current_Methane);
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-type:text/plain");
-  client.println();
-  client.println(data);  // Restituisci solo il dato
+  return data;      // Restituisci solo il dato
 }
 // CO
-void serveData_CO(WiFiClient client) {
+String serveData_CO() {
   String data = String(current_CO);
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-type:text/plain");
-  client.println();
-  client.println(data);  // Restituisci solo il dato
+  return data;      // Restituisci solo il dato
 }
 // Umidità
-void serveData_RH(WiFiClient client) {
+String serveData_RH() {
   String data = String(current_RH);
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-type:text/plain");
-  client.println();
-  client.println(data);  // Restituisci solo il dato
+  return data;      // Restituisci solo il dato
 }
 
+// Sostituzione dato placeholder nell'HTML
+String processor(const String& var){
+  Serial.println(var);
+
+  if (var == "METHANE"){
+    return serveData_Meth();
+  }
+  else if (var == "CO"){
+    return serveData_CO();
+  }
+  else if (var == "HUMIDITY"){
+    return serveData_RH();
+  }
+
+  return String();
+}
 
 // Definizione funzioni task
 // Lettura da sensori
@@ -250,7 +232,7 @@ void readSensors (void *parameters) {
   for (;;) {
 
     // Controllo su seriale
-    Serial.println("Reading...");
+    // Serial.println("Reading...");
 
     // Leggo i parametri che mi interessano
     current_CO = readCO();
@@ -284,8 +266,8 @@ void writeSensorData (void *parameters) {
       sensor.addField("humidity", current_RH);
 
       // Stampo su seriale per controllo
-      Serial.print("Writing: ");
-      Serial.println(sensor.toLineProtocol());
+      // Serial.print("Writing: ");
+      // Serial.println(sensor.toLineProtocol());
 
       // Mi riconnetto al DB se mi sono disconnesso per scriverci i dati
       if (wifiMulti.run() != WL_CONNECTED) {
@@ -300,45 +282,6 @@ void writeSensorData (void *parameters) {
     }
 
     // Permetto al server di accettare richieste
-    vTaskDelay(1000);
-  }
-}
-// Comunicazione con la pagina WEB e i client
-void serverWEB (void *parameters) {
-  // Il server è disponibiile sempre
-  for (;;) {
-    // Controllo da seriale
-    Serial.println("Waiting for connection...");
-
-    // Aspetto si connetta un client
-    WiFiClient client = server.available();
-
-    if (client) {
-      String request = client.readStringUntil('\n');
-      Serial.println(request);
-
-      // Differenzia tipi di richieste
-      // Se la richiesta è per il file HTML principale invio la pagina
-      if (request.startsWith("GET / ")) {
-        serveHtmlPage(client);
-      }
-      // Se la richiesta è per i dati 
-      // /humidity = umidità
-      // /methane = metano
-      // /co = CO
-      else if (request.startsWith("GET /humidity")) {
-        serveData_RH(client);
-      }
-      else if (request.startsWith("GET /methane")) {
-        serveData_Meth(client);  
-      }
-      else if (request.startsWith("GET /co")) {
-        serveData_CO(client);  
-      }
-
-      client.stop();
-    }
-
     vTaskDelay(1000);
   }
 }
@@ -373,6 +316,7 @@ void setup() {
     Serial.print(".");
     delay(100);
   }
+  Serial.println();
   Serial.println("WiFi connected!");
   Serial.println();
   
@@ -395,11 +339,29 @@ void setup() {
   sensor.addTag("SSID", WiFi.SSID());
 
   // ------------- HTTP ---------------
-  // Monta SPIFFS
-  if (!SPIFFS.begin(true)) {
-    Serial.println("Errore di montaggio SPIFFS");
+  // Inizializzo LittleFS
+  if(!LittleFS.begin()){
+    Serial.println("An Error has occurred while mounting LittleFS");
     return;
   }
+
+  // Root page 
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/index.html", String(), false, processor);
+  });
+
+  // Richieste dei singoli dati
+  server.on("/co", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", serveData_CO().c_str());
+  });
+  
+  server.on("/humidity", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", serveData_RH().c_str());
+  });
+  
+  server.on("/methane", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", serveData_Meth().c_str());
+  });
 
   // Avvia server
   server.begin();
@@ -427,17 +389,6 @@ void setup() {
     NULL,
     1,
     &writeDB_handle,
-    1
-  );
-
-  // Task per mettere a disposizione il server WEB
-  xTaskCreatePinnedToCore (
-    serverWEB,
-    "serverWEB",
-    10000,
-    NULL,
-    1,
-    &serverWEB_handle,
     1
   );
 }
