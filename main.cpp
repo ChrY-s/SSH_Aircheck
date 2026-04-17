@@ -376,6 +376,19 @@ void setup() {
     request->send(200, "text/plain", calculateQuality().c_str());
   });
 
+  // Pagine di dettagli
+  server.on("/details_humidity", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/humidity.html", String(), false, processor);
+  });
+
+  server.on("/details_methane", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/methane.html", String(), false, processor);
+  });
+
+  server.on("/details_co", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/co.html", String(), false, processor);
+  });
+
 
   // Avvia server
   server.begin();
