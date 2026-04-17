@@ -25,11 +25,11 @@
 #define DEVICE "ESP32"
 
 // Credenziali WiFi
-//#define WIFI_SSID "Galaxy A34 5G 9655"      // SSID
-//#define WIFI_PASSWORD "ffg88w3sgnu3sn9"     // Password
+#define WIFI_SSID "Galaxy A34 5G 9655"      // SSID
+#define WIFI_PASSWORD "ffg88w3sgnu3sn9"     // Password
 
-#define WIFI_SSID "TIM-83699574"                 // SSID
-#define WIFI_PASSWORD "VA89zqccfKWwdeCtXd6N"     // Password
+//#define WIFI_SSID "TIM-83699574"                 // SSID
+//#define WIFI_PASSWORD "VA89zqccfKWwdeCtXd6N"     // Password
 
 // Informazioni per connettersi al DB
 #define INFLUXDB_URL "https://us-east-1-1.aws.cloud2.influxdata.com"
@@ -42,9 +42,6 @@
 
 // Porta del server HTTP
 #define PORT 80
-
-// Percorso alla pagina WEB
-#define PAGE "/index.html"
 
 // --------- VARIABILI GLOBALI -----------
 float current_Methane;                  // valore relativo di Metano
@@ -207,6 +204,15 @@ String serveData_RH() {
   String data = String(current_RH);
   return data;      // Restituisci solo il dato
 }
+// Quzlità dell'aria in percentuale
+String calculateQuality() {
+  int air_quality;
+
+  // Calcolo la qualità dell'aria moltiplicando i valori di metano e CO, restituisco un intero
+  air_quality = current_CO * current_Methane * 100;
+
+  return (String)air_quality;
+}
 
 // Sostituzione dato placeholder nell'HTML
 String processor(const String& var){
@@ -220,6 +226,9 @@ String processor(const String& var){
   }
   else if (var == "HUMIDITY"){
     return serveData_RH();
+  }
+  else if (var == "QUALITY") {
+    return calculateQuality();
   }
 
   return String();
@@ -362,6 +371,11 @@ void setup() {
   server.on("/methane", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(200, "text/plain", serveData_Meth().c_str());
   });
+
+  server.on("/quality", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", calculateQuality().c_str());
+  });
+
 
   // Avvia server
   server.begin();
