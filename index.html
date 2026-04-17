@@ -3,24 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 Web Server</title>
+  <title>Aircheck</title>
 </head>
 <body>
-  <h1>ESP32 Web Server - Dati in tempo reale</h1>
+  <h1>Qualità dell'aria: Dati in tempo reale</h1>
+
+  <h4>Indice di qualità</h4>
+  <p>
+    <span id="quality">%QUALITY%</span>
+  </p>
 
   <p>
-    <span class="sensor-labels">Humidity </span>
+    <span class="sensor-labels">Umidità </span>
     <span id="humidity">%HUMIDITY%</span>
   </p>
 
   <p>
-    <span class="sensor-labels">Methane </span>
+    <span class="sensor-labels">Metano </span>
     <span id="methane">%METHANE%</span>
   </p>
 
   <p>
-    <span class="sensor-labels">Co </span>
+    <span class="sensor-labels">Monossido di Carbonio </span>
     <span id="co">%CO%</span>
+  </p>
+
+  <h4>Vai ai dettagli</h4>
+  <p>
+    <a><button class="button">Umidità</button></a>
+    <a><button class="button">Metano</button></a>
+    <a><button class="button">CO</button></a>
   </p>
 
 </body>
@@ -48,8 +60,8 @@
       updateSensorValue('co', '/co');
       updateSensorValue('humidity', '/humidity');
       updateSensorValue('methane', '/methane');
+      updateSensorValue('quality', '/quality');
     }, 2000);
   </script>
 
 </html>
-
