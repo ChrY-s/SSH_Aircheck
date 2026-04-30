@@ -15,6 +15,17 @@
 #define MQ7 32                  // Rilevatore CO (Monossido di carbonio)
 #define MQ4 33                  // Rilevatore Metano
 
+// Pin collegati alla ventola
+#define motor1Pin1 27
+#define motor1Pin2 26
+#define enable1Pin 33
+
+// Velocità ventola
+// 255 = 100%
+#define SLOW 80
+#define MEDIUM 150
+#define FAST 255
+
 // Resistenza di riferimento
 #define RL 1000                 // 1 kOhm
 
@@ -55,6 +66,12 @@ bool sensorData_available = false;      // mi dice se ci sono dei dati nuovi che
 // Dato da scrivere
 Point sensor("sensor_data");
 
+// Proprietà PWM
+const int freq = 30000;
+const int pwmChannel = 0;
+const int resolution = 8;
+int dutyCycle = 200;
+
 // ------------ DEVICE -------------
 // Sensore umidità
 Adafruit_AHTX0 aht;
@@ -63,6 +80,7 @@ Adafruit_AHTX0 aht;
 TaskHandle_t read_handle;       // Lettura da sensori
 TaskHandle_t writeDB_handle;    // Scrittura su DB
 TaskHandle_t serverWEB_handle;  // Server WEB
+TaskHandle_t fan_handle;        // Ventola
 
 // WIFI
 WiFiMulti wifiMulti;                // Dispositivo wifi multi-device
@@ -294,6 +312,30 @@ void writeSensorData (void *parameters) {
     vTaskDelay(1000);
   }
 }
+// Attivazione ventola
+void startWind (void *parameters) {
+  // Vedo la qualità dell'aria e attivo la ventola a seconda di quanto la qualità è bassa
+  int air_quality = calculateQuality().toInt();
+  // velocità ventola
+  int fan_speed;  
+
+  // Attività:
+  // 75 < Q < 100    -->    velocità lenta
+  // 50 < Q < 75     -->    velocità media
+  // 0  < Q < 50     -->    velocità veloce
+  if ( air_quality >= 75 ) fan_speed = SLOW;
+  else if ( air_quality >= 50 ) fan_speed = MEDIUM;
+  else fan_speed = FAST;
+
+  // Attivo la ventola
+  digitalWrite(motor1Pin1, LOW);
+  digitalWrite(motor1Pin2, HIGH);
+  ledcWrite(pwmChannel, fan_speed);
+
+  // La ventola gira per 10 secondi prima di controllare di nuovo la qualità dell'aria e modificare
+  // eventualmente la velocità della ventola
+  vTaskDelay(10000);
+}
 
 void setup() {
   // Inizilizzazioni
@@ -314,6 +356,15 @@ void setup() {
 
   if (init_7.control_flag == 0) Ro7 = init_7.data; 
   else Ro7 = -1;
+
+  // ---------------- VENTOLA ---------------
+  // Imposto i pin come output
+  pinMode(motor1Pin1, OUTPUT);
+  pinMode(motor1Pin2, OUTPUT);
+  ledcSetup(pwmChannel, freq, resolution);
+  // Configuro PWM
+  ledcAttachPin(enable1Pin, pwmChannel);
+
 
   // ------------------ WIFI ------------------
   // Setup wifi
@@ -416,6 +467,17 @@ void setup() {
     NULL,
     1,
     &writeDB_handle,
+    1
+  );
+
+  // Task di attivazione ventola
+  xTaskCreatePinnedToCore (
+    startWind,
+    "startWind",
+    10000,
+    NULL,
+    2,
+    &fan_handle,
     1
   );
 }
