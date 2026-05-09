@@ -18,7 +18,7 @@
 // Pin collegati alla ventola
 #define motor1Pin1 27
 #define motor1Pin2 26
-#define enable1Pin 33
+#define enable1Pin 14
 
 // Velocità ventola
 // 255 = 100%
