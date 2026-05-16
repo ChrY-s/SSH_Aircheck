@@ -10,15 +10,24 @@
 #include <LittleFS.h>
 #include "FS.h"
 
+
+/*
+----------------------------------------------------------------
+1 - Controllo automatico e/o manuale della ventola
+2 - Partitore di tensione per ridurre uscita 5V a max 3.3V 
+3 - MQTT per dati 
+----------------------------------------------------------------
+*/
+
 // ------------ DEFINZIONI -------------
 // Definisco i pin a cui i sensori sono collegati
 #define MQ7 32                  // Rilevatore CO (Monossido di carbonio)
 #define MQ4 33                  // Rilevatore Metano
 
 // Pin collegati alla ventola
-#define motor1Pin1 27
-#define motor1Pin2 26
-#define enable1Pin 14
+#define motor1Pin1 12
+#define motor1Pin2 14
+#define enable1Pin 13
 
 // Velocità ventola
 // 255 = 100%
@@ -55,6 +64,8 @@
 #define PORT 80
 
 // --------- VARIABILI GLOBALI -----------
+SemaphoreHandle_t dataMutex;            // Semaforo per gestire l'accesso alle variabili globali
+
 float current_Methane;                  // valore relativo di Metano
 float current_CO;                       // valore relativo di CO
 float current_RH;                       // valore assoluto di umidità
@@ -109,6 +120,7 @@ void preheat(void){
 // Funzione di calibrazione dei sensori del gas
 // 0 = successo
 // 1 = errore nella selezione del sensore
+// 2 = sensori scollegati e/o malfunzionanti
 calibInit calib_gas(int sensor) {
   Serial.print("Calibrazione sensore ");
 
@@ -127,7 +139,7 @@ calibInit calib_gas(int sensor) {
     // Fattore di calibrazione in aria pulita
     CLEAN_AIR_FACTOR = 27;
     // Per rilevare R0 corretto devo fare un ciclo di preriscaldamento
-    preheat();
+    // preheat();
   }
   else if (sensor == MQ4) {
     Serial.println("MQ4...");
@@ -149,13 +161,22 @@ calibInit calib_gas(int sensor) {
 
     // Calcolo la tensione
     float voltage = adc * (V / 4095);
+    // Evito il problema della divisione per 0 se non c'è tensione
+    if (voltage <= 0.01) {
+      status.control_flag = 2;
+      return status;
+    }
 
     // Calcolo RS e lo metto nella somma
     float Rs = RL * ((V - voltage)/voltage);
     Rs_mean += Rs;
+
+    // Aspetto 0.1 secondi per eseguire una nuova misurazione
+    vTaskDelay(100 / portTICK_PERIOD_MS);
   }
 
   // Calcolo il valore medio di Rs e calcolo la R0 (Di riferimento)
+  Rs_mean /= 50.0;
   float R0 = Rs_mean/CLEAN_AIR_FACTOR;
   status.data = R0;
 
@@ -171,6 +192,9 @@ float readMethane(void) {
 
     // Calcolo la tensione
     float voltage = adc * (V / 4095);
+    // Evito il problema della divisione per 0 se non c'è tensione
+    if (voltage <= 0.01)
+    return -1;
 
     // Calcolo RS 
     float Rs = RL * ((V - voltage)/voltage);
@@ -185,6 +209,9 @@ float readCO(void) {
 
     // Calcolo la tensione
     float voltage = adc * (V / 4095);
+    // Evito il problema della divisione per 0 se non c'è tensione
+    if (voltage <= 0.01)
+    return -1;
 
     // Calcolo RS 
     float Rs = RL * ((V - voltage)/voltage);
@@ -208,48 +235,50 @@ float readRH(void) {
 // Funzioni per restituire i singoli dati
 // Restituiscono i dati in formato Stringa per spedirli alla pagina WEB
 // Metano
-String serveData_Meth() {
-  String data = String(current_Methane);
-  return data;      // Restituisci solo il dato
+float serveData_Meth() {
+  return current_Methane;      // Restituisci solo il dato
 }
 // CO
-String serveData_CO() {
-  String data = String(current_CO);
-  return data;      // Restituisci solo il dato
+float serveData_CO() {
+  return current_CO;      // Restituisci solo il dato
 }
 // Umidità
-String serveData_RH() {
-  String data = String(current_RH);
-  return data;      // Restituisci solo il dato
+float serveData_RH() {
+  return current_RH;      // Restituisci solo il dato
 }
 // Quzlità dell'aria in percentuale
-String calculateQuality() {
+int calculateQuality() {
   int air_quality;
 
   // Calcolo la qualità dell'aria moltiplicando i valori di metano e CO, restituisco un intero
-  air_quality = current_CO * current_Methane * 100;
+  float score = (current_CO + current_Methane) / 2.0;
+  air_quality = constrain((int)(100 - score * 25), 0, 100);
 
-  return (String)air_quality;
+  if (current_CO < 0 || current_Methane < 0)
+    return -1;
+
+  return air_quality;
 }
 
 // Sostituzione dato placeholder nell'HTML
 String processor(const String& var){
-  Serial.println(var);
+  // Serial.println(var);
+  int data;
 
   if (var == "METHANE"){
-    return serveData_Meth();
+    data = serveData_Meth();
   }
   else if (var == "CO"){
-    return serveData_CO();
+    data = serveData_CO();
   }
   else if (var == "HUMIDITY"){
-    return serveData_RH();
+    data = serveData_RH();
   }
   else if (var == "QUALITY") {
-    return calculateQuality();
+    data = calculateQuality();
   }
 
-  return String();
+  return String(data);
 }
 
 // Definizione funzioni task
@@ -262,12 +291,14 @@ void readSensors (void *parameters) {
     // Serial.println("Reading...");
 
     // Leggo i parametri che mi interessano
+    xSemaphoreTake(dataMutex, portMAX_DELAY);
     current_CO = readCO();
     current_Methane = readMethane();
     current_RH = readRH();
 
     // I dati sono disponibili per la scrittura
     sensorData_available = true;
+    xSemaphoreGive(dataMutex);
     
     // Leggo circa ogni 2 secondi
     vTaskDelay(2000 / portTICK_PERIOD_MS);
@@ -283,14 +314,21 @@ void writeSensorData (void *parameters) {
     if (sensorData_available) {
       sensorData_available = false;
 
+      // Istantanea dei valori
+      xSemaphoreTake(dataMutex, portMAX_DELAY);
+      float co = current_CO;
+      float methane = current_Methane;
+      float rh = current_RH;
+      xSemaphoreGive(dataMutex);
+
       // Tolgo i dati vecchi ma resta l'identificativo
       sensor.clearFields();
 
       // Metto il valore misurato in una colonna del dato
       // Riporta livelli di Metano, CO e Umidità in un certo istante di tempo
-      sensor.addField("methane", current_Methane);
-      sensor.addField("co", current_CO);
-      sensor.addField("humidity", current_RH);
+      sensor.addField("methane", methane);
+      sensor.addField("co", co);
+      sensor.addField("humidity", rh);
 
       // Stampo su seriale per controllo
       // Serial.print("Writing: ");
@@ -309,32 +347,34 @@ void writeSensorData (void *parameters) {
     }
 
     // Permetto al server di accettare richieste
-    vTaskDelay(1000);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 }
 // Attivazione ventola
 void startWind (void *parameters) {
-  // Vedo la qualità dell'aria e attivo la ventola a seconda di quanto la qualità è bassa
-  int air_quality = calculateQuality().toInt();
-  // velocità ventola
-  int fan_speed;  
+  for (;;) {
+    // Vedo la qualità dell'aria e attivo la ventola a seconda di quanto la qualità è bassa
+    int air_quality = calculateQuality();
+    // velocità ventola
+    int fan_speed;  
 
-  // Attività:
-  // 75 < Q < 100    -->    velocità lenta
-  // 50 < Q < 75     -->    velocità media
-  // 0  < Q < 50     -->    velocità veloce
-  if ( air_quality >= 75 ) fan_speed = SLOW;
-  else if ( air_quality >= 50 ) fan_speed = MEDIUM;
-  else fan_speed = FAST;
+    // Attività:
+    // 75 < Q < 100    -->    velocità lenta
+    // 50 < Q < 75     -->    velocità media
+    // 0  < Q < 50     -->    velocità veloce
+    if ( air_quality >= 75 ) fan_speed = SLOW;
+    else if ( air_quality >= 50 ) fan_speed = MEDIUM;
+    else fan_speed = FAST;
 
-  // Attivo la ventola
-  digitalWrite(motor1Pin1, LOW);
-  digitalWrite(motor1Pin2, HIGH);
-  ledcWrite(pwmChannel, fan_speed);
+    // Attivo la ventola
+    digitalWrite(motor1Pin1, LOW);
+    digitalWrite(motor1Pin2, HIGH);
+    ledcWrite(pwmChannel, fan_speed);
 
-  // La ventola gira per 10 secondi prima di controllare di nuovo la qualità dell'aria e modificare
-  // eventualmente la velocità della ventola
-  vTaskDelay(10000);
+    // La ventola gira per 10 secondi prima di controllare di nuovo la qualità dell'aria e modificare
+    // eventualmente la velocità della ventola
+    vTaskDelay(10000 / portTICK_PERIOD_MS);
+  }
 }
 
 void setup() {
@@ -342,6 +382,9 @@ void setup() {
   Serial.begin(115200);         // Seriale per stampe e controlli in-line
   pinMode(MQ7, INPUT);          // Sensore CO
   pinMode(MQ4, INPUT);          // Sensore Met
+
+  // Semaforo per evitare race condition
+  dataMutex = xSemaphoreCreateMutex();
 
   // Avvio sensori
   aht.begin();                  // Sensore AHT20 per umidità
@@ -369,6 +412,7 @@ void setup() {
   // ------------------ WIFI ------------------
   // Setup wifi
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
   wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
   
   Serial.print("Connecting to wifi");
@@ -412,19 +456,19 @@ void setup() {
 
   // Richieste dei singoli dati
   server.on("/co", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", serveData_CO().c_str());
+    request->send(200, "text/plain", (String)serveData_CO());
   });
   
   server.on("/humidity", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", serveData_RH().c_str());
+    request->send(200, "text/plain", (String)serveData_RH());
   });
   
   server.on("/methane", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", serveData_Meth().c_str());
+    request->send(200, "text/plain", (String)serveData_Meth());
   });
 
   server.on("/quality", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", calculateQuality().c_str());
+    request->send(200, "text/plain", (String)calculateQuality());
   });
 
   // Pagine di dettagli
@@ -452,29 +496,32 @@ void setup() {
   xTaskCreatePinnedToCore (
     readSensors,                // Funzione da eseguire
     "readSensors",              // Nome task
-    10000,                      // Stack size
+    3072,                       // Stack size
     NULL,                       // Parametri della funzione da eseguire
     2,                          // Priorità
     &read_handle,               // Task handle
     1                           // Core d'appoggio
   );
+  
 
   // Task di scrittura su DB
   xTaskCreatePinnedToCore (
     writeSensorData,
     "writeSensorData",
-    10000,
+    3072,
     NULL,
     1,
     &writeDB_handle,
     1
   );
 
+  
+
   // Task di attivazione ventola
   xTaskCreatePinnedToCore (
     startWind,
     "startWind",
-    10000,
+    3072,
     NULL,
     2,
     &fan_handle,
