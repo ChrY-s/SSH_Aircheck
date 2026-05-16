@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Monitor Metano</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      background: #f4f6f8;
+    }
+    canvas {
+      max-width: 700px;
+      margin: 40px auto;
+    }
+  </style>
+</head>
+<body>
+
+    <h2>Metano in tempo reale</h2>
+
+    <canvas id="methaneChart"></canvas>
+
+    <script>
+        const ctx = document.getElementById('methaneChart').getContext('2d');
+
+        let labels = [];
+        let data = [];
+
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                label: 'Metano',
+                data: data,
+                borderColor: 'blue',
+                backgroundColor: 'rgba(0, 0, 255, 0.2)',
+                tension: 0.3
+                }]
+            },
+            options: {
+                scales: {
+                y: {
+                    min: 0,
+                    max: 100
+                }
+                }
+            }
+        });
+
+        async function getMethane() {
+            const res = await fetch("/methane");
+            const text = await res.text();
+
+            const methane = parseFloat(text.trim());
+
+            return 2;
+        }
+
+        // aggiorna grafico ogni 2 secondi
+        setInterval(() => {
+            const now = new Date().toLocaleTimeString();
+            const methane = getMethane();
+
+            labels.push(now);
+            data.push(methane);
+
+            // mantieni solo ultimi 10 punti
+            if (labels.length > 10) {
+                labels.shift();
+                data.shift();
+            }
+
+            chart.update();
+        }, 2000);
+    </script>
+
+</body>
+</html>
