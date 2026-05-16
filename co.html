@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Monitor Monossido di Carbonio</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      background: #f4f6f8;
+    }
+    canvas {
+      max-width: 700px;
+      margin: 40px auto;
+    }
+  </style>
+</head>
+<body>
+
+    <h2>Monossido di Carbonio in tempo reale</h2>
+
+    <canvas id="coChart"></canvas>
+
+    <script>
+        const ctx = document.getElementById('coChart').getContext('2d');
+
+        let labels = [];
+        let data = [];
+
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                label: 'Monossido di Carbonio',
+                data: data,
+                borderColor: 'blue',
+                backgroundColor: 'rgba(0, 0, 255, 0.2)',
+                tension: 0.3
+                }]
+            },
+            options: {
+                scales: {
+                y: {
+                    min: 0,
+                    max: 100
+                }
+                }
+            }
+        });
+
+        async function getCo() {
+            const res = await fetch("/co");
+            const text = await res.text();
+
+            const co = parseFloat(text.trim());
+
+            return 2;
+        }
+
+        // aggiorna grafico ogni 2 secondi
+        setInterval(() => {
+            const now = new Date().toLocaleTimeString();
+            const co = getCo();
+
+            labels.push(now);
+            data.push(co);
+
+            // mantieni solo ultimi 10 punti
+            if (labels.length > 10) {
+                labels.shift();
+                data.shift();
+            }
+
+            chart.update();
+        }, 2000);
+    </script>
+
+</body>
+</html>
