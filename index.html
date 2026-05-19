@@ -2,73 +2,70 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitor Metano</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" type="text/css" href="style.css">
-  <title>Aircheck</title>
 </head>
 <body>
-  <h1>Qualità dell'aria: Dati in tempo reale</h1>
 
-  <h4>Indice di qualità</h4>
-  <p>
-    <span id="quality">%QUALITY%</span>
-  </p>
+    <h2>Metano in tempo reale</h2>
 
-  <p>
-    <span class="sensor-labels">Umidità </span>
-    <span id="humidity">%HUMIDITY%</span>
-  </p>
+    <canvas id="methaneChart"></canvas>
 
-  <p>
-    <span class="sensor-labels">Metano </span>
-    <span id="methane">%METHANE%</span>
-  </p>
+    <script>
+        const ctx = document.getElementById('methaneChart').getContext('2d');
 
-  <p>
-    <span class="sensor-labels">Monossido di Carbonio </span>
-    <span id="co">%CO%</span>
-  </p>
+        let labels = [];
+        let data = [];
 
-  <h4>Vai ai dettagli</h4>
-  <p>
-    <a href="/details_humidity"><button class="button">Umidità</button></a>
-    <a href="/details_methane"><button class="button">Metano</button></a>
-    <a href="/details_co"><button class="button">CO</button></a>
-  </p>
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                label: 'Metano',
+                data: data,
+                borderColor: 'blue',
+                backgroundColor: 'rgba(0, 0, 255, 0.2)',
+                tension: 0.3
+                }]
+            },
+            options: {
+                scales: {
+                y: {
+                    min: 0,
+                    max: 100
+                }
+                }
+            }
+        });
 
-  <h4>Controllo manuale ventola</h4>
-  <p>
-    <a href="/manual_start"><button class="button">Avvia</button></a>
-    <a href="/manual_stop"><button class="button">Controllo automatico</button></a>
-  </p>
+        async function getMethane() {
+            const res = await fetch("/methane");
+            const text = await res.text();
+
+            const methane = parseFloat(text.trim());
+
+            return 2;
+        }
+
+        // aggiorna grafico ogni 2 secondi
+        setInterval(() => {
+            const now = new Date().toLocaleTimeString();
+            const methane = getMethane();
+
+            labels.push(now);
+            data.push(methane);
+
+            // mantieni solo ultimi 10 punti
+            if (labels.length > 10) {
+                labels.shift();
+                data.shift();
+            }
+
+            chart.update();
+        }, 2000);
+    </script>
 
 </body>
-
-  <script>
-    const updateSensorValue = (id, endpoint) => {
-      fetch(endpoint)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`Failed to fetch ${endpoint}`);
-          }
-          return response.text();
-        })
-        .then(data => {
-          document.getElementById(id).textContent = data;
-        })
-        .catch(error => {
-          console.error(error);
-          document.getElementById(id).textContent = 'Error';
-        });
-    };
-
-    // Update all sensors every 2 second
-    setInterval(() => {
-      updateSensorValue('co', '/co');
-      updateSensorValue('humidity', '/humidity');
-      updateSensorValue('methane', '/methane');
-      updateSensorValue('quality', '/quality');
-    }, 2000);
-  </script>
-
 </html>
