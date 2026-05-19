@@ -14,7 +14,7 @@
 /*
 ----------------------------------------------------------------
 1 - Controllo automatico e/o manuale della ventola
-2 - Partitore di tensione per ridurre uscita 5V a max 3.3V 
+2 - Partitore di tensione per ridurre uscita 5V a max 3.3V --> r2/(r1 + r2) = 2/3
 3 - MQTT per dati 
 ----------------------------------------------------------------
 */
@@ -73,6 +73,8 @@ float current_RH;                       // valore assoluto di umidità
 float Ro4, Ro7;                         // valori di riferimento dei sensori
 
 bool sensorData_available = false;      // mi dice se ci sono dei dati nuovi che posso scrivere nel DB
+
+bool manual = false;                    // mi dice se sto controllando automaticamente la ventola o no
 
 // Dato da scrivere
 Point sensor("sensor_data");
@@ -246,7 +248,7 @@ float serveData_CO() {
 float serveData_RH() {
   return current_RH;      // Restituisci solo il dato
 }
-// Quzlità dell'aria in percentuale
+// Qualità dell'aria in percentuale
 int calculateQuality() {
   int air_quality;
 
@@ -258,6 +260,24 @@ int calculateQuality() {
     return -1;
 
   return air_quality;
+}
+// Avvio manuale ventola
+// L'avvio avverrà a velocità massima, in quanto l'idea è che se serve un'attivazione manuale si è in stato di emergenza
+String manualStart() {
+  manual = true;
+
+  digitalWrite(motor1Pin1, LOW);
+  digitalWrite(motor1Pin2, HIGH);
+  ledcWrite(pwmChannel, 50);
+
+  return ("OK");
+}
+// Stop manuale ventola
+String manualStop() {
+  // Attivo controllo automatico
+  manual = false;
+
+  return ("OK");
 }
 
 // Sostituzione dato placeholder nell'HTML
@@ -353,23 +373,26 @@ void writeSensorData (void *parameters) {
 // Attivazione ventola
 void startWind (void *parameters) {
   for (;;) {
-    // Vedo la qualità dell'aria e attivo la ventola a seconda di quanto la qualità è bassa
-    int air_quality = calculateQuality();
-    // velocità ventola
-    int fan_speed;  
+    // Solo se non avvio il controllo manuale
+    if (!manual) {
+      // Vedo la qualità dell'aria e attivo la ventola a seconda di quanto la qualità è bassa
+      int air_quality = calculateQuality();
+      // velocità ventola
+      int fan_speed;  
 
-    // Attività:
-    // 75 < Q < 100    -->    velocità lenta
-    // 50 < Q < 75     -->    velocità media
-    // 0  < Q < 50     -->    velocità veloce
-    if ( air_quality >= 75 ) fan_speed = SLOW;
-    else if ( air_quality >= 50 ) fan_speed = MEDIUM;
-    else fan_speed = FAST;
+      // Attività:
+      // 75 < Q < 100    -->    velocità lenta
+      // 50 < Q < 75     -->    velocità media
+      // 0  < Q < 50     -->    velocità veloce
+      if ( air_quality >= 75 ) fan_speed = SLOW;
+      else if ( air_quality >= 50 ) fan_speed = MEDIUM;
+      else fan_speed = FAST;
 
-    // Attivo la ventola
-    digitalWrite(motor1Pin1, LOW);
-    digitalWrite(motor1Pin2, HIGH);
-    ledcWrite(pwmChannel, fan_speed);
+      // Attivo la ventola
+      digitalWrite(motor1Pin1, LOW);
+      digitalWrite(motor1Pin2, HIGH);
+      ledcWrite(pwmChannel, fan_speed);
+    }
 
     // La ventola gira per 10 secondi prima di controllare di nuovo la qualità dell'aria e modificare
     // eventualmente la velocità della ventola
@@ -449,6 +472,11 @@ void setup() {
     return;
   }
 
+  // Route per il file di stile
+  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/style.css", "text/css");
+  });
+
   // Root page 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(LittleFS, "/index.html", String(), false, processor);
@@ -484,6 +512,14 @@ void setup() {
     request->send(LittleFS, "/co.html", String(), false, processor);
   });
 
+  // Controlli manuali
+  server.on("/manual_start", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", manualStart());
+  });
+
+    server.on("/manual_stop", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", manualStop());
+  });
 
   // Avvia server
   server.begin();
@@ -493,6 +529,7 @@ void setup() {
   // --------------- TASK -----------------
   // Creazione Task
   // Task di lettura dai sensori
+  
   xTaskCreatePinnedToCore (
     readSensors,                // Funzione da eseguire
     "readSensors",              // Nome task
@@ -504,17 +541,18 @@ void setup() {
   );
   
 
+  
   // Task di scrittura su DB
   xTaskCreatePinnedToCore (
     writeSensorData,
     "writeSensorData",
-    3072,
+    8192,
     NULL,
     1,
     &writeDB_handle,
     1
   );
-
+  
   
 
   // Task di attivazione ventola
