@@ -1,0 +1,122 @@
+/* Reset e font moderno */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background: #eef2f7;
+  color: #2c3e50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  line-height: 1.6; /* Più spazio tra le righe */
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin-bottom: 30px;
+  text-align: center;
+  color: #ff6600; /* arancione acceso */
+}
+
+/* Card indice qualità */
+.quality-card {
+  background: #ffffff;
+  padding: 30px 40px;
+  border-radius: 15px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+  text-align: center;
+  margin-bottom: 30px;
+  width: 300px;
+}
+
+.quality-card h2 {
+  font-size: 1.2rem;
+  color: #7f8c8d;
+  margin-bottom: 10px;
+}
+
+.quality-card #quality {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #27ae60; /* Verde dei pulsanti */
+}
+
+/* Card sensori */
+.sensors {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.sensor-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.05);
+  padding: 20px;
+  width: 180px;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.sensor-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 25px rgba(0,0,0,0.1);
+}
+
+.sensor-labels {
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: block;
+  color: #34495e;
+}
+
+.sensor-value {
+  font-size: 1.5rem;
+  color: #2980b9;
+  font-weight: bold;
+}
+
+/* Pulsanti */
+.buttons {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.button {
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.button:hover {
+  background-color: #2ecc71;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .quality-card, .sensor-card {
+    width: 90%;
+  }
+  .buttons {
+    flex-direction: column;
+  }
+  .button {
+    width: 100%;
+  }
+}
