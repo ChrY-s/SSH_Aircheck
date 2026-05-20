@@ -1,122 +1,258 @@
-/* Reset e font moderno */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
-  background: #eef2f7;
-  color: #2c3e50;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  font-family: 'Poppins', sans-serif;
+  min-height: 100vh;
   padding: 40px 20px;
-  line-height: 1.6; /* Più spazio tra le righe */
+  color: #ffffff;
+
+  background:
+    radial-gradient(circle at top left, #6a00ff33, transparent 30%),
+    radial-gradient(circle at bottom right, #b300ff22, transparent 30%),
+    linear-gradient(135deg, #090909, #120018, #1a0026);
+
+  background-attachment: fixed;
+  text-align: center;
 }
 
+/* Titolo principale */
 h1 {
-  font-size: 2.5rem;
-  margin-bottom: 30px;
   text-align: center;
-  color: #ff6600; /* arancione acceso */
+  font-size: 2.4rem;
+  margin-bottom: 40px;
+  color: #d9b3ff;
+
+  text-shadow:
+    0 0 10px #a020f0,
+    0 0 20px #7a00ff;
 }
 
-/* Card indice qualità */
-.quality-card {
-  background: #ffffff;
-  padding: 30px 40px;
-  border-radius: 15px;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-  text-align: center;
-  margin-bottom: 30px;
-  width: 300px;
+h2 {
+  font-size: 2rem;
+  margin-bottom: 20px;
+  color: #d9b3ff;
+  text-shadow:
+    0 0 10px #a020f0,
+    0 0 20px #7a00ff;
 }
 
-.quality-card h2 {
-  font-size: 1.2rem;
-  color: #7f8c8d;
-  margin-bottom: 10px;
+/* Titoli sezioni */
+h4 {
+  margin-bottom: 20px;
+  color: #c084ff;
+  font-size: 1.3rem;
+  position: relative;
+  padding-left: 18px;
 }
 
-.quality-card #quality {
-  font-size: 3rem;
-  font-weight: bold;
-  color: #27ae60; /* Verde dei pulsanti */
+/* Linea decorativa curva */
+h4::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  background: #bb66ff;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  box-shadow: 0 0 10px #bb66ff;
 }
 
-/* Card sensori */
-.sensors {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-bottom: 30px;
-}
-
-.sensor-card {
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 6px 15px rgba(0,0,0,0.05);
-  padding: 20px;
-  width: 180px;
-  text-align: center;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.sensor-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 25px rgba(0,0,0,0.1);
-}
-
-.sensor-labels {
-  font-weight: 600;
-  margin-bottom: 8px;
+/* Contenitore grafico */
+canvas {
+  max-width: 750px;
+  width: 95%;
+  margin: 30px auto;
   display: block;
-  color: #34495e;
+
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(180, 100, 255, 0.25);
+  border-radius: 20px;
+
+  padding: 20px;
+
+  box-shadow:
+    0 0 25px rgba(128, 0, 255, 0.2),
+    inset 0 0 15px rgba(255, 255, 255, 0.02);
+
+  backdrop-filter: blur(10px);
 }
 
-.sensor-value {
-  font-size: 1.5rem;
-  color: #2980b9;
-  font-weight: bold;
+/* Sezioni */
+.section {
+  background: rgba(255, 255, 255, 0.05);
+
+  border: 1px solid rgba(180, 100, 255, 0.2);
+
+  border-radius: 24px;
+
+  padding: 28px;
+  margin-bottom: 30px;
+
+  backdrop-filter: blur(10px);
+
+  box-shadow:
+    0 0 20px rgba(128, 0, 255, 0.15),
+    inset 0 0 20px rgba(255,255,255,0.02);
+
+  position: relative;
+  overflow: hidden;
 }
 
-/* Pulsanti */
-.buttons {
-  display: flex;
-  gap: 15px;
-  flex-wrap: wrap;
-  justify-content: center;
+/* Decorazione superiore */
+.section::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 30px;
+  width: 120px;
+  height: 3px;
+
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #bb66ff,
+    transparent
+  );
+
+  border-radius: 999px;
 }
 
+/* Testi */
+p {
+  margin: 14px 0;
+  font-size: 1.05rem;
+  color: #eeeeee;
+}
+
+/* Label sensori */
+.sensor-labels {
+  color: #d0aaff;
+  font-weight: 600;
+}
+
+/* Valori */
+#quality,
+#humidity,
+#methane,
+#co {
+  color: #ffffff;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+/* Bottoni */
 .button {
-  background-color: #27ae60;
+  background: linear-gradient(
+    135deg,
+    #6f00ff,
+    #ae00ff
+  );
+
   color: white;
   border: none;
-  padding: 12px 25px;
-  border-radius: 8px;
-  font-size: 1rem;
+
+  padding: 12px 22px;
+  margin: 10px 8px 0 0;
+
+  border-radius: 14px;
+
+  font-size: 0.95rem;
+  font-weight: 600;
+
   cursor: pointer;
-  transition: all 0.3s ease;
+
+  transition: all 0.25s ease;
+
+  box-shadow:
+    0 0 15px rgba(140, 0, 255, 0.4);
 }
 
 .button:hover {
-  background-color: #2ecc71;
-  transform: translateY(-3px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+  transform: translateY(-2px) scale(1.03);
+
+  box-shadow:
+    0 0 25px rgba(180, 0, 255, 0.7);
+
+  filter: brightness(1.1);
+}
+
+/* Pulsante selezionato */
+.button.active {
+  background: linear-gradient(
+    135deg,
+    #d14dff,
+    #ff00cc
+  );
+
+  box-shadow:
+    0 0 10px #ff66ff,
+    0 0 25px #c000ff,
+    0 0 45px rgba(255, 0, 255, 0.6);
+
+  border: 1px solid rgba(255,255,255,0.3);
+
+  transform: scale(0.97);
+}
+
+/*Indicatore grafico*/
+.gauge-container {
+  text-align: center;
+  margin: 30px 0;
+}
+
+.gauge {
+  width: 280px;
+  max-width: 100%;
+}
+
+#needle {
+  transform-origin: 100px 100px;
+  transform: rotate(-90deg);
+  transition: transform 0.8s ease;
+  filter: drop-shadow(0 0 6px #ffffffaa);
+}
+
+#gaugeValue {
+  margin-top: 10px;
+  font-size: 1.3rem;
+  color: #d9b3ff;
+  font-weight: bold;
+}
+
+/* Link */
+a {
+  text-decoration: none;
+}
+
+#quality {
+  display: none;
 }
 
 /* Responsive */
-@media (max-width: 600px) {
-  .quality-card, .sensor-card {
-    width: 90%;
+@media (max-width: 700px) {
+
+  body {
+    padding: 20px 14px;
   }
-  .buttons {
-    flex-direction: column;
+
+  h1 {
+    font-size: 1.8rem;
   }
+
+  .section {
+    padding: 20px;
+  }
+
   .button {
     width: 100%;
+    margin-right: 0;
   }
 }
