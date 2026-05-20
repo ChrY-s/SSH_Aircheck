@@ -46,25 +46,24 @@
 
             const methane = parseFloat(text.trim());
 
-            return 2;
+            return methane;
         }
 
         // aggiorna grafico ogni 2 secondi
-        setInterval(() => {
+        setInterval(async () => {
             const now = new Date().toLocaleTimeString();
-            const methane = getMethane();
+            const methane = await getMethane();
 
             labels.push(now);
             data.push(methane);
 
-            // mantieni solo ultimi 10 punti
             if (labels.length > 10) {
                 labels.shift();
                 data.shift();
             }
 
             chart.update();
-        }, 2000);
+            }, 2000);
     </script>
 
 </body>
