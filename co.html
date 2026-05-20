@@ -2,13 +2,13 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Monitor Monossido di Carbonio</title>
+  <title>Monitor Metano</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 <body>
 
-    <h2>Monossido di Carbonio in tempo reale</h2>
+    <h2>Monossido di carbonio in tempo reale</h2>
 
     <canvas id="coChart"></canvas>
 
@@ -23,7 +23,7 @@
             data: {
                 labels: labels,
                 datasets: [{
-                label: 'Monossido di Carbonio',
+                label: 'CO',
                 data: data,
                 borderColor: 'blue',
                 backgroundColor: 'rgba(0, 0, 255, 0.2)',
@@ -46,25 +46,24 @@
 
             const co = parseFloat(text.trim());
 
-            return 2;
+            return co;
         }
 
         // aggiorna grafico ogni 2 secondi
-        setInterval(() => {
+        setInterval(async () => {
             const now = new Date().toLocaleTimeString();
-            const co = getCo();
+            const co = await getCo();
 
             labels.push(now);
             data.push(co);
 
-            // mantieni solo ultimi 10 punti
             if (labels.length > 10) {
                 labels.shift();
                 data.shift();
             }
 
             chart.update();
-        }, 2000);
+            }, 2000);
     </script>
 
 </body>
