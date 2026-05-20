@@ -266,10 +266,6 @@ int calculateQuality() {
 String manualStart() {
   manual = true;
 
-  digitalWrite(motor1Pin1, LOW);
-  digitalWrite(motor1Pin2, HIGH);
-  ledcWrite(pwmChannel, 50);
-
   return ("OK");
 }
 // Stop manuale ventola
@@ -392,6 +388,12 @@ void startWind (void *parameters) {
       digitalWrite(motor1Pin1, LOW);
       digitalWrite(motor1Pin2, HIGH);
       ledcWrite(pwmChannel, fan_speed);
+    }
+    else {
+      // Avvio manualmente
+      digitalWrite(motor1Pin1, HIGH);
+      digitalWrite(motor1Pin2, LOW);
+      ledcWrite(pwmChannel, 200);
     }
 
     // La ventola gira per 10 secondi prima di controllare di nuovo la qualità dell'aria e modificare
