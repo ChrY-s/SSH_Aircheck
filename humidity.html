@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Monitor Umidità</title>
+  <title>Monitor Metano</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" type="text/css" href="style.css">
 </head>
@@ -23,7 +23,7 @@
             data: {
                 labels: labels,
                 datasets: [{
-                label: 'Umidità (%)',
+                label: 'Umidità',
                 data: data,
                 borderColor: 'blue',
                 backgroundColor: 'rgba(0, 0, 255, 0.2)',
@@ -46,25 +46,24 @@
 
             const humidity = parseFloat(text.trim());
 
-            return 2;
+            return humidity;
         }
 
         // aggiorna grafico ogni 2 secondi
-        setInterval(() => {
+        setInterval(async () => {
             const now = new Date().toLocaleTimeString();
-            const humidity = getHumidity();
+            const humidity = await getHumidity();
 
             labels.push(now);
             data.push(humidity);
 
-            // mantieni solo ultimi 10 punti
             if (labels.length > 10) {
                 labels.shift();
                 data.shift();
             }
 
             chart.update();
-        }, 2000);
+            }, 2000);
     </script>
 
 </body>
