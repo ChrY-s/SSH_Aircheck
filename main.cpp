@@ -39,7 +39,7 @@
 #define RL 1000                 // 1 kOhm
 
 // Tensione di riferimento
-#define V 3.3
+#define V 5.0
 
 // Microcontrollore
 #define DEVICE "ESP32"
@@ -183,6 +183,10 @@ calibInit calib_gas(int sensor) {
   status.data = R0;
 
   Serial.println("Calibrazione completata");
+  Serial.print("Sensore ");
+  Serial.print(sensor);
+  Serial.print(": ");
+  Serial.println(R0);
   return status;
 }
 
@@ -193,16 +197,21 @@ float readMethane(void) {
     int adc = analogRead(MQ4);
 
     // Calcolo la tensione
-    float voltage = adc * (V / 4095);
+    float voltage = adc * (3.3 / 1023);
     // Evito il problema della divisione per 0 se non c'è tensione
-    if (voltage <= 0.01)
+    if (voltage == 0)
     return -1;
 
     // Calcolo RS 
-    float Rs = RL * ((V - voltage)/voltage);
-
+    float Rs = RL * ((3.3 - voltage)/voltage);
+    
     // Calcolo il rapporto tra Rs e R0 e lo restituisco
-    return Rs/Ro4;
+    if (Rs/Ro4 <= 0)
+      return -1;
+      
+    float gas = 1-(Rs/Ro4);
+    if (gas < 0) return 0;
+    else return gas;
 }
 // CO
 float readCO(void) {
@@ -210,16 +219,16 @@ float readCO(void) {
     int adc = analogRead(MQ7);
 
     // Calcolo la tensione
-    float voltage = adc * (V / 4095);
+    float voltage = adc * (V / 1023);
     // Evito il problema della divisione per 0 se non c'è tensione
-    if (voltage <= 0.01)
+    if (voltage == 0)
     return -1;
 
     // Calcolo RS 
-    float Rs = RL * ((V - voltage)/voltage);
+    float Rs = RL * ((V - voltage)/voltage) / V;
 
     // Calcolo il rapporto tra Rs e R0 e lo restituisco
-    return Rs/Ro7;
+    return (1-(Rs/Ro7))*100;
 }
 // UMIDITA
 float readRH(void) {
@@ -251,15 +260,29 @@ float serveData_RH() {
 // Qualità dell'aria in percentuale
 int calculateQuality() {
   int air_quality;
+  float co;
+  float meth;
+  float rh;
 
   // Calcolo la qualità dell'aria moltiplicando i valori di metano e CO, restituisco un intero
-  float score = (current_CO + current_Methane) / 2.0;
-  air_quality = constrain((int)(100 - score * 25), 0, 100);
+  if (current_CO == -1) co = 0;
+  else co = 1 - current_CO;
+  if (current_Methane == -1) meth = 0;
+  else meth = 1 - current_Methane;
+  if (current_RH == -1) rh = 0;
+  else rh = 1 - current_RH;
 
-  if (current_CO < 0 || current_Methane < 0)
-    return -1;
+  float score;
 
-  return air_quality;
+  int valid = 3;
+  if (co == 0) valid--;
+  if (rh == 0) valid--;
+  if (meth == 0) valid--;
+
+  if (valid == 0) score = -1;
+  else score = - (co + meth + rh) / valid;
+
+  return score;
 }
 // Avvio manuale ventola
 // L'avvio avverrà a velocità massima, in quanto l'idea è che se serve un'attivazione manuale si è in stato di emergenza
